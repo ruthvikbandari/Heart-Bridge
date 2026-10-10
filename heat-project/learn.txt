@@ -1,0 +1,1641 @@
+HEARTBRIDGE - COMPLETE PROJECT LEARNING AND VIVA GUIDE
+======================================================
+
+Purpose and safety
+------------------
+This is a beginner-friendly but technical guide to the actual HeartBridge
+workspace. It explains what the code does and how the parts connect; it does not
+describe technologies merely because they are common in similar projects.
+
+No real API key, password, JWT, or value from backend/.env is included here.
+Environment-variable names are documented, but secret values are intentionally
+not read or reproduced. The attached request is read-only and is not edited.
+
+This repository describes HeartBridge as a prototype. It is not a clinic,
+therapist, emergency service, or clinically validated medical product. Sample
+clinicians and sample appointments are fictional/demo data.
+
+The source of truth is the current code and its dependency manifests. Generated
+folders such as frontend/node_modules, frontend/dist, Python caches, and the
+local database are not authored source code.
+
+
+1. PROJECT OVERVIEW
+-------------------
+
+1.1 Main purpose
+HeartBridge is a full-stack supportive health and wellbeing community web
+application. It brings together member accounts, a social feed, topic-based
+communities, member messaging, an AI companion, a sample clinician directory,
+appointments, and privacy tools.
+
+1.2 Problem it addresses
+It demonstrates one place where users can find peer support, participate in
+communities, organize wellbeing conversations, try an AI companion, and explore
+a sample care-directory and booking flow. This is a software prototype; it does
+not establish that a clinician is real or verified and it does not provide
+emergency or clinical monitoring.
+
+1.3 Intended users
+- Members: register, set up a profile, post, join groups, message, use the
+  Companion, and manage privacy/account data.
+- Moderators/admins: review reports and access moderation functions.
+- Sample clinicians: fictional directory data used to demonstrate clinician
+  search and booking workflows.
+
+1.4 What happens when someone opens the site
+1. The browser downloads the React single-page app (Vite serves it in development).
+2. frontend/src/main.tsx mounts the app, router and authentication provider.
+3. The auth provider calls GET /api/me to ask the backend whether a session cookie
+   belongs to an active user.
+4. frontend/src/App.tsx selects the page for the URL and applies route guards.
+   Signed-out visitors can access public pages; incomplete accounts go through
+   onboarding; authenticated users can access protected pages.
+5. A page loads server data through frontend/src/lib/api.ts and React Query.
+6. FastAPI validates the request, checks authentication and authorization when
+   needed, calls route/service logic, and accesses SQLAlchemy/database records.
+7. For Companion messages, the backend applies safety rules, constructs permitted
+   context, and selects a configured remote provider or a labelled demo provider.
+8. The backend returns JSON, streams AI tokens through SSE, or sends best-effort
+   real-time message updates through a WebSocket.
+9. React updates the page and the user sees the result.
+
+1.5 Start-to-end summary
+USER
+  -> React page and interaction
+  -> api.ts sends HTTP request with browser cookie
+  -> FastAPI router validates input and current user
+  -> service function applies business rules
+  -> SQLAlchemy reads/writes SQLite (or configured PostgreSQL)
+  -> optional backend httpx request to Gemini/OpenAI-compatible API
+  -> JSON response, SSE stream, or WebSocket update
+  -> React Query/component state updates the interface
+  -> USER
+
+1.6 A simple 8-line explanation for a guide
+HeartBridge is a prototype wellbeing and peer-support web application.
+It includes a community feed, groups, private messages, and an AI Companion.
+It also demonstrates a sample clinician directory and appointment booking.
+The frontend uses React and TypeScript and the backend uses Python FastAPI.
+They communicate through HTTP APIs; AI answers stream to the browser using SSE.
+SQLAlchemy stores data in SQLite by default, and Alembic manages schema changes.
+Login uses password hashes and a JWT in an HTTP-only cookie.
+The AI uses remote providers when configured; HeartBridge does not train its model.
+
+
+2. TECHNOLOGY STACK - ACTUALLY USED
+-----------------------------------
+
+Technology/tool        Where it is used                  Why / what it does
+---------------------  --------------------------------  ----------------------
+Python                 backend/app                       Backend language for
+                                                         routes and services.
+FastAPI                backend/app/main.py, routers      HTTP/WebSocket API,
+                                                         dependency injection.
+Uvicorn                backend requirements / run cmd    ASGI server for FastAPI.
+React 19               frontend/src                      Component UI library.
+TypeScript 6           frontend/src                      Typed frontend code.
+Vite 8                 frontend/vite.config.ts            Dev server and bundler.
+React Router 7         frontend/src/main.tsx, App.tsx     Page routing/guards.
+TanStack React Query 5 frontend pages/components         Server-data caching,
+                                                         loading and refetch.
+Tailwind CSS 4         Vite plugin and frontend styles    Utility CSS styling.
+CSS                    frontend/src/index.css, App.css   Layout, theme, responsive
+                                                         and accessibility styles.
+Lucide React           frontend components               Icons.
+SQLAlchemy             backend/app/models.py/database.py ORM, sessions, queries.
+SQLite                 backend/heartbridge.db            Default relational DB.
+PostgreSQL             DATABASE_URL option               Supported DB deployment
+                                                         alternative.
+Alembic                backend/alembic                    Database migrations.
+Pydantic               backend routers/config             Request/settings models
+                                                         and input validation.
+pydantic-settings      backend/app/config.py              Environment settings.
+PyJWT                  backend/app/security.py            Signed JWT sessions.
+PBKDF2-SHA256          backend/app/security.py            Password hashing.
+httpx                  backend AI provider service        Async external HTTP.
+Gemini API             backend AI provider service        Optional generative AI.
+OpenAI-compatible API  backend AI provider service        Optional fallback.
+HTTP/REST-style API    frontend api.ts and backend         Browser/backend calls.
+SSE                    AI Companion                       Streams one-way AI text.
+WebSocket              /api/ws                            Best-effort live updates.
+Web Speech API         AIChat.tsx                         Browser speech input and
+                                                         read-aloud.
+pytest                 backend/tests                      Backend test runner.
+Vitest                 frontend tests                     Frontend test runner.
+Testing Library/jsdom  frontend tests                     UI rendering/assertions.
+oxlint                frontend package scripts            Frontend linter.
+npm / Node.js          frontend package scripts            Install/run/build UI.
+
+Do not claim these technologies: NumPy, Pandas, scikit-learn, Matplotlib,
+Seaborn, Streamlit, Flask, MongoDB, MySQL, Firebase, LangChain, Hugging Face,
+FAISS, Docker, or a trained local ML model. No training dataset, model weights,
+training script, train/test split, or ML evaluation pipeline was found.
+
+JavaScript is the language ecosystem underlying React/TypeScript and browser
+execution; authored frontend files are primarily TypeScript/TSX. The app uses
+HTML/CSS through its web entry and styles. No GitHub integration is part of the
+runtime application.
+
+2.1 Direct dependencies versus indirect dependencies
+The package names declared directly by the project appear in
+backend/requirements.txt and frontend/package.json, described in section 13.
+Those packages may install additional transitive dependencies. No backend
+lockfile was identified to establish a complete pinned transitive tree. Do not
+present a transitive package as a direct project dependency unless the manifest
+or source explicitly confirms it.
+
+
+3. WHY THE MAJOR TOOLS ARE USED
+-------------------------------
+
+React and TypeScript
+- What: React builds interactive UI from components; TypeScript adds static types.
+- Why: Pages, reusable controls and stateful interactions are easier to organize,
+  and types catch many mistakes before runtime.
+- Files: frontend/src/App.tsx, pages/, components/, lib/.
+- If removed: the UI needs another framework or hand-written DOM logic; typed
+  checking is lost if TypeScript is replaced by plain JavaScript.
+- Alternatives: Vue, Svelte, Angular, or plain JS/HTML.
+
+Vite
+- What: Frontend development server and production bundler.
+- Why: Serves React during development, applies plugins/proxy config and builds
+  static deployment assets.
+- File: frontend/vite.config.ts; commands in frontend/package.json.
+- If removed: another dev server/bundler and proxy setup are needed.
+- Alternatives: other React-compatible bundlers or framework tooling.
+
+React Router
+- What: Maps URLs to page components and navigation.
+- Why: Provides public, protected and onboarding route flows.
+- Files: frontend/src/main.tsx and frontend/src/App.tsx.
+- If removed: URL routing/history and guards need replacement.
+- Alternative: another router or a framework with routing built in.
+
+TanStack React Query
+- What: Server-state fetching/cache/update helper.
+- Why: Reduces custom code for loading, caching and refetching API results after
+  mutations.
+- Used by: frontend pages/components that query and mutate API data.
+- If removed: manually implement request state, cache invalidation and refetch.
+- Alternatives: custom hooks, another query/cache library.
+
+FastAPI and Pydantic
+- What: FastAPI defines HTTP and WebSocket handlers; Pydantic validates data.
+- Why: Separates endpoint handling from typed request parsing and reusable
+  dependencies such as the DB session/current user.
+- Files: backend/app/main.py, routers/, request models in route modules.
+- If removed: use another Python web framework and validation approach.
+- Alternatives: Flask, Django REST Framework, another ASGI framework.
+
+SQLAlchemy and Alembic
+- What: SQLAlchemy maps Python models to relational tables and manages sessions;
+  Alembic records/applies schema versions.
+- Why: Keeps database access structured and supports SQLite/PostgreSQL; migrations
+  update database structure safely as code changes.
+- Files: backend/app/models.py, database.py, backend/alembic/.
+- If removed: manually write SQL and migration operations or replace the ORM.
+- Alternatives: Django ORM, SQLModel, direct SQL plus a migration tool.
+
+SQLite/PostgreSQL
+- What: Relational databases.
+- Why: SQLite is convenient as a local file and for tests; configuration also
+  supports PostgreSQL for shared deployment.
+- File: backend/app/config.py; connection construction in database.py.
+- If removed: persistent relational storage needs replacement.
+- Alternative: another relational database; MongoDB is not used here.
+
+JWT, HTTP-only cookie and password hashing
+- What: Signed session token and salted password hash.
+- Why: Backend can authenticate later requests without storing plaintext
+  passwords; HttpOnly prevents normal frontend JavaScript from reading cookie.
+- File: backend/app/security.py plus routers/auth.py and deps.py.
+- If removed: replace authentication/session mechanism; never store raw passwords.
+- Alternatives: server-side session store or another secure cookie-session design.
+
+httpx and external AI APIs
+- What: Async HTTP client and remote generative AI endpoints.
+- Why: Backend makes provider requests without sending provider credentials to
+  browser code; no provider SDK is a direct backend requirement.
+- File: backend/app/services/ai_provider.py.
+- If removed: replace outbound HTTP client/provider integration.
+- Alternatives: provider SDK or another HTTP client, subject to async behavior.
+
+SSE and WebSocket
+- SSE: One-way server-to-browser stream; used to display AI tokens as they arrive.
+- WebSocket: Persistent bidirectional connection; used for best-effort member
+  messaging/live notifications. They serve separate purposes.
+- If removed: AI waits for complete response or uses another stream; messages
+  lose current push updates and rely on polling.
+
+Tailwind/CSS and Lucide
+- Tailwind provides utility classes; custom CSS defines layout, design tokens,
+  companion-only style, reduced motion and theme behavior.
+- Lucide React provides icon components.
+- If removed: styles/icons must be supplied through alternatives or custom markup.
+
+pytest/Vitest/Testing Library
+- What: Backend and frontend test tooling.
+- Why: Exercises API/business behaviors and frontend rendering.
+- Files: backend/tests and frontend/src/lib/richText.test.tsx.
+- If removed: no project test runner; manual verification only.
+
+
+4. HOW THE TOOLS CONNECT
+------------------------
+
+4.1 Architecture diagram
+
+                 +----------------------+
+                 | Browser / human user |
+                 +----------+-----------+
+                            |
+                            v
+              +-----------------------------+
+              | React + TypeScript frontend |
+              | Router + React Query         |
+              +--------------+--------------+
+                             |
+                 HTTP / SSE / WebSocket
+                 cookie credentials
+                             |
+                             v
+              +-----------------------------+
+              | FastAPI application          |
+              | routers -> service functions |
+              +-----------+----------+------+
+                          |          |
+                    SQLAlchemy      httpx
+                          |          |
+                          v          v
+                   +-----------+  +---------------------+
+                   | SQLite or |  | Gemini or optional  |
+                   | PostgreSQL|  | OpenAI-compatible   |
+                   +-----------+  +---------------------+
+                          |
+         JSON, SSE tokens, or live messaging updates
+                          |
+                          v
+                   React updates UI
+
+4.2 Connections in plain language
+- BrowserRouter/App choose the page from the URL.
+- AuthProvider asks api.ts/backend who is signed in.
+- api.ts uses fetch with credentials included; Vite proxies /api and /uploads in
+  local development to the backend.
+- FastAPI parses requests with Pydantic and resolves dependencies for DB/user.
+- Routers call services to apply shared business rules.
+- SQLAlchemy writes/reads relational records; Alembic separately upgrades schema.
+- AI provider service calls external APIs using httpx. The provider key stays in
+  backend environment configuration.
+- AI output is returned via SSE; AIChat displays partial chunks.
+- Member live messages use a WebSocket connection. Durable records are still
+  stored through the database, not the WebSocket itself.
+
+
+5. FILE-BY-FILE EXPLANATION
+---------------------------
+
+5.1 Workspace root
+- README.md: project purpose, architecture, setup, demo accounts, environment
+  names, API map, safety, limitations and troubleshooting. It is documentation,
+  not runtime code.
+- .env.example: placeholder-only configuration template. It is safe to commit;
+  it contains no real credentials.
+- .gitignore: excludes local .env, database, uploads, dependencies, build output,
+  Python caches and generated files.
+- backend/: API, database/migrations, services and tests.
+- frontend/: browser app, assets, dependencies and build config.
+
+5.2 Backend files
+- backend/app/main.py
+  Purpose: Create/configure FastAPI app, middleware, route mounting and startup.
+  Called by: Uvicorn imports app.main:app.
+  Calls/uses: settings, routers, database/session setup, static upload mount.
+  Output: HTTP/WebSocket application.
+- backend/app/config.py
+  Purpose: Settings model and get_settings(); environment-backed configuration.
+  Used by: app services, provider selection, middleware, DB.
+- backend/app/constants.py
+  Purpose: Shared constants, including prompt/version values.
+- backend/app/database.py
+  Purpose: SQLAlchemy Base, make_engine(url), get_db session dependency.
+  Used by: model declarations and routes.
+- backend/app/models.py
+  Purpose: SQLAlchemy table/model definitions, keys and relationships.
+  Used by: routers, services, migrations and tests.
+- backend/app/deps.py
+  Purpose: get_current_user and require_moderator authorization dependencies.
+- backend/app/security.py
+  Purpose: hash_password, verify_password, create_token.
+- backend/app/rate_limit.py
+  Purpose: In-process rate limiting used by sensitive endpoints.
+- backend/app/seed.py
+  Purpose: Populate fictional demo accounts/communities/clinicians and related
+  sample data for demonstration.
+- backend/app/routers/__init__.py
+  Purpose: Router package.
+- backend/app/routers/auth.py
+  Purpose: Register/login/logout, current user/profile, onboarding, account and
+  user relationship routes.
+- backend/app/routers/system.py
+  Purpose: Health/meta, general uploads, notifications.
+- backend/app/routers/posts.py
+  Purpose: Feed/posts, reactions, comments, bookmarks and reports.
+- backend/app/routers/communities.py
+  Purpose: Community listing/detail, joining/leaving, membership and events.
+- backend/app/routers/messages.py
+  Purpose: Message requests, conversations, direct messages and /ws endpoint.
+- backend/app/routers/ai.py
+  Purpose: Companion status/conversations/messages/stream/regenerate/feedback/
+  summary; validates owner, inputs and attachments.
+- backend/app/routers/doctors.py
+  Purpose: Clinician directory, availability and appointment endpoints.
+- backend/app/routers/privacy.py
+  Purpose: Consent, export, journal, preparation kit and next-step endpoints.
+- backend/app/routers/admin.py
+  Purpose: Moderator/admin reports, audit and statistics.
+- backend/app/services/accounts.py
+  Purpose: Shared account creation/deletion operations.
+- backend/app/services/booking.py
+  Purpose: Appointment reservation and slot conflict rules.
+- backend/app/services/common.py
+  Purpose: Shared helper functions.
+- backend/app/services/social.py
+  Purpose: Shared social/feed behavior.
+- backend/app/services/realtime.py
+  Purpose: In-memory WebSocket connection hub and live event fan-out.
+- backend/app/services/ai_prompts.py
+  Purpose: Construct server-side Companion system instructions/context.
+- backend/app/services/ai_safety.py
+  Purpose: Rule-based safety categories and policy response text.
+- backend/app/services/ai_provider.py
+  Purpose: Demo/Gemini/OpenAI-compatible provider implementations and selection.
+- backend/alembic.ini
+  Purpose: Alembic migration configuration.
+- backend/alembic/env.py
+  Purpose: Loads DB settings and SQLAlchemy metadata for migrations.
+- backend/alembic/script.py.mako
+  Purpose: Template used to generate migrations.
+- backend/alembic/versions/45225d5c65bb_initial_schema.py
+  Purpose: Initial relational database schema revision.
+- backend/requirements.txt
+  Purpose: Direct Python dependency declarations.
+- backend/pytest.ini
+  Purpose: Pytest configuration.
+- backend/tests/conftest.py
+  Purpose: Shared fixtures and isolated test database setup.
+- backend/tests/test_auth.py
+  Tests account/auth behavior.
+- backend/tests/test_feed.py
+  Tests feed visibility/social behavior.
+- backend/tests/test_messages.py
+  Tests message permissions and workflow.
+- backend/tests/test_booking.py
+  Tests reservation and slot conflict behavior.
+- backend/tests/test_privacy.py
+  Tests privacy/export/account functions.
+- backend/tests/test_ai_provider.py
+  Tests provider/config/attachment behaviors with test doubles.
+- backend/tests/test_ai_safety.py
+  Tests rule-based safety handling.
+
+5.3 Frontend files
+- frontend/index.html: HTML shell into which Vite mounts React.
+- frontend/package.json: direct packages and npm scripts.
+- frontend/vite.config.ts: Vite plugins, dev server and /api,/uploads proxy.
+- frontend/src/main.tsx: browser entry; initializes router/providers/App.
+- frontend/src/App.tsx: route map and RequireAuth flow.
+- frontend/src/App.css: app-level CSS.
+- frontend/src/index.css: global tokens, Tailwind/theme/accessibility and
+  Companion-specific visual classes.
+- frontend/src/lib/api.ts: api(), ApiError, unauthorized handler and streamSse().
+- frontend/src/lib/auth.tsx: AuthProvider/useAuth and current-user actions.
+- frontend/src/lib/types.ts: shared TypeScript data structures and helpers.
+- frontend/src/lib/richText.tsx: restricted safe rich-text/link rendering.
+- frontend/src/lib/richText.test.tsx: test of rich-text output/safety.
+- frontend/src/components/Layout.tsx: app shell/navigation, theme and live updates.
+- frontend/src/components/PostCard.tsx: reusable post display/actions.
+- frontend/src/components/ui.tsx: shared Button, Field, Alert, Modal, Avatar,
+  Spinner and related UI components.
+- frontend/src/pages/Public.tsx: Landing, SignIn, SignUp and AuthShell.
+- frontend/src/pages/Onboarding.tsx: onboarding flow.
+- frontend/src/pages/Home.tsx: feed and post composer.
+- frontend/src/pages/AIChat.tsx: Companion UI, chat, streaming, uploads, voice.
+- frontend/src/pages/Communities.tsx: community list/detail flows.
+- frontend/src/pages/Messages.tsx: inbox and direct-message interactions.
+- frontend/src/pages/Care.tsx: Doctors, DoctorDetail and Appointments.
+- frontend/src/pages/Account.tsx: profile, privacy, saved, notifications, journal,
+  prep and admin account screens.
+- frontend/src/pages/PostPage.tsx: individual post view.
+- frontend/src/pages/Public.tsx and pages above use common components/helpers.
+- frontend/public/: static logos/icons/images.
+- frontend/src/assets/: source-bundled images such as hero.png and starter icons.
+
+5.4 Generated and runtime items
+- frontend/node_modules: installed packages; not app-authored source.
+- frontend/dist: build output; regenerate with npm run build.
+- backend/heartbridge.db: local runtime SQLite database; schema is defined in
+  models and migrations, not by the binary DB file.
+- __pycache__, .pytest_cache, *.tsbuildinfo: generated caches/metadata.
+- Public logo/hero and starter React/Vite assets may coexist. Their presence alone
+  does not prove they are used; check imports/references before removing assets.
+
+
+6. COMPLETE DATA FLOW
+---------------------
+
+6.1 Where data comes from and where it goes
+- User-entered forms/messages/files originate in browser UI.
+- Frontend sends JSON or multipart data through api.ts; AI attachments are sent
+  as request data for one generation.
+- FastAPI/Pydantic validates the request; auth dependencies identify the user.
+- Router/service logic checks permissions and transforms required fields.
+- SQLAlchemy stores persistent user, post, message, appointment and other records.
+- For AI, safety rules and prompt builder prepare input; backend may call external
+  provider. It does not train or save a local model.
+- Response is JSON, SSE tokens, or WebSocket event. React renders it.
+
+6.2 New account
+Sign-up form
+  -> POST /api/auth/register
+  -> validation/rate limit
+  -> password hash
+  -> user/profile records in DB
+  -> signed JWT set as hb_session HttpOnly cookie
+  -> AuthProvider GET /api/me
+  -> onboarding/home route
+
+6.3 Social post
+Composer
+  -> optional image to POST /api/uploads
+  -> upload validation and disk storage; response has URL
+  -> POST /api/posts with post fields and image URL
+  -> permission/visibility checks
+  -> SQLAlchemy persist
+  -> JSON post response
+  -> React Query refreshes feed and PostCard displays it
+
+6.4 AI companion
+Composer and optional attachment
+  -> POST /api/ai/conversations/{id}/messages, authenticated by cookie
+  -> validate conversation owner, user text and attachment
+  -> persist user text; attachment contents remain ephemeral
+  -> classify safety category
+  -> safety reply OR build context and select provider
+  -> httpx provider stream if live provider configured
+  -> SSE tokens emitted by backend
+  -> streamSse updates AIChat progressively
+  -> assistant response/metadata persisted
+  -> final stream event completes UI turn
+
+6.5 Appointment
+Care page loads doctors/slots
+  -> user selects available slot
+  -> POST /api/appointments
+  -> backend verifies and books through book_slot
+  -> DB conflict/unique safeguard prevents double active reservation
+  -> JSON result updates page
+  -> cancellation can release the slot
+
+
+7. API EXPLANATION
+------------------
+
+7.1 API categories
+All HTTP routers mount below /api. The route map below lists important families;
+the running FastAPI /docs page is the exact OpenAPI reference.
+
+System:
+- GET /api/health: application/database health result.
+- GET /api/meta: product/config metadata for UI.
+- POST /api/uploads: upload supported public post images.
+- GET /api/notifications and POST read/read-all: notification state.
+
+Authentication/profile:
+- POST /api/auth/register, /api/auth/login, /api/auth/logout.
+- GET/PATCH /api/me; POST /api/me/onboarding; DELETE /api/me.
+- More user/profile/follow endpoints in routers/auth.py.
+
+Social:
+- GET/POST /api/posts and related read/update/delete routes.
+- Reaction, comment, bookmark and report routes in routers/posts.py.
+
+Communities:
+- List/detail, join/leave, membership review, community posts/events in
+  routers/communities.py.
+
+Member messaging:
+- Request/conversation/message/accept/decline/read/mute/block operations in
+  routers/messages.py; WS /api/ws for live updates.
+
+AI Companion:
+- GET /api/ai/status; conversation CRUD; POST message generation; regenerate,
+  feedback and summary routes in routers/ai.py.
+- Message generation is a POST returning SSE, not a one-shot JSON answer.
+
+Care:
+- GET doctor list/details/slots; POST appointment; cancel/update routes in
+  routers/doctors.py.
+
+Privacy/admin:
+- Consent, export, journal, prep-kit and next steps in routers/privacy.py.
+- Reports/audit/statistics in routers/admin.py with privileged authorization.
+
+7.2 HTTP methods in simple terms
+- GET reads data.
+- POST creates data or starts an operation (login, create post, message, booking).
+- PATCH changes selected fields.
+- DELETE removes/deactivates supported records.
+- WebSocket remains open for bidirectional events.
+- SSE holds a response open for server-to-browser generated text events.
+
+7.3 External AI API connection
+Frontend -> POST to HeartBridge backend -> auth and input checks -> provider
+selection -> httpx request to Gemini or OpenAI-compatible endpoint -> provider
+stream parsed by backend -> SSE response -> api.ts parser -> AIChat renders.
+
+Provider credentials are in backend environment only. The browser does not make
+the provider request and must not contain a provider key.
+
+
+8. DATABASE EXPLANATION
+-----------------------
+
+8.1 Technology, connection, migrations
+- SQLAlchemy is the ORM and session layer.
+- SQLite is the default file-backed relational database; PostgreSQL can be used
+  by configuring DATABASE_URL.
+- Connection/session helpers are in backend/app/database.py.
+- Model declarations are in backend/app/models.py.
+- Alembic configuration is in backend/alembic.ini and backend/alembic/env.py.
+- Initial schema migration: backend/alembic/versions/45225d5c65bb_initial_schema.py.
+- Apply migrations with `alembic upgrade head` from backend. The app does not
+  replace this with create_all at normal startup.
+- Tests create isolated test tables/database through backend/tests/conftest.py.
+
+8.2 Models/tables and important fields
+The backend model declarations cover these data groups. Exact SQL column types,
+constraints, relationships and defaults should be checked in models.py.
+
+Account/preferences:
+- User: id, email, password_hash, role, status, onboarded, created_at.
+- Profile: user_id, display_name, bio, language, avatar_color.
+- Consent: id, user_id, preference_key, enabled, updated_at.
+- UserInterest: user_id, topic.
+
+Relationships:
+- Follow: follower_id, followed_id, created_at.
+- Block: blocker_id, blocked_id, created_at.
+
+Communities:
+- Community: id, slug, name, description, guidelines, topic, visibility,
+  allow_anonymous, created_at.
+- Membership: user_id/community_id, role, status, anonymous_name, created_at.
+- CommunityEvent: community_id, title, description, starts_at, created_by.
+- CommunityResource: community_id, title, URL, summary, source label/review date.
+
+Feed:
+- Post: author/community, body, image URL, visibility, content warning,
+  anonymous/removal flags, timestamps.
+- PostTopic: post_id/topic.
+- Reaction: post_id/user_id/reaction_type.
+- Comment: post, author, optional parent, body, removed and timestamp.
+- Bookmark: user_id/post_id/time.
+
+Member messaging:
+- Conversation: creator, status, created_at.
+- Participant: conversation/user, unread and muted.
+- Message: conversation, sender, body and timestamp.
+
+AI/personal support:
+- AIConversation: owner, title, archived, style, intent, use_profile, summary,
+  created/updated timestamps.
+- AIMessage: conversation, role, content, demo, safety_code, feedback, time.
+- NextStep: user/conversation, action, clinician_question, resource, time.
+- PrepKit: user, concerns, questions, timeline, update time.
+- JournalEntry: user, body, time.
+
+Clinician/booking:
+- Doctor: linked account where applicable, name, qualifications, specialty,
+  clinic/area, languages, modes, fee, verification/demo flags, bio/accessibility.
+- AvailabilitySlot: doctor, start/end, status, demo flag.
+- Appointment: patient, doctor, slot, status, notes and timestamps.
+- AppointmentEvent: appointment, actor, from/to status and time.
+
+Moderation/records:
+- Report: reporter, target type/id, reason/details, status, moderator/resolution,
+  timestamps.
+- Notification: recipient, event type, title/body/link, read flag, created_at.
+- AuditEvent: actor, action, target type/id, time.
+- ExportRequest: user, status and time.
+
+SQLAlchemy model inventory includes 31 model/table declarations according to the
+backend inspection. If a guide requests the exact full inventory or exact field
+types, open backend/app/models.py; this guide groups related fields to keep
+explanations readable.
+
+8.3 Persistence behavior and integrity
+- Routes/services query and mutate using SQLAlchemy sessions from get_db().
+- Foreign keys connect child records to their owners; cascade/null behavior is
+  declared by models.
+- Some link tables use composite keys/uniqueness constraints.
+- Active appointment slots have a uniqueness safeguard to prevent double booking.
+- Account deletion and booking have reusable service logic.
+
+
+9. AI/ML EXPLANATION
+--------------------
+
+9.1 Is there a locally trained model?
+No. The workspace contains no training dataset, model-training code, train/test
+split, feature-selection pipeline, evaluation metrics, or saved local model
+weights. HeartBridge sends a request to a configured remote generative provider
+for inference. It does not train Gemini.
+
+9.2 What the Companion actually does
+1. AIChat collects a message and optional supported attachment.
+2. The authenticated backend route checks conversation ownership and validates
+   text/file input.
+3. The user's text is stored as an AIMessage; raw attachment bytes/text are not
+   saved as the chat history content.
+4. ai_safety.classify(text) applies rule/pattern classification for safety cases.
+5. If a policy response is appropriate, safety_reply(code) can answer without an
+   external provider.
+6. Otherwise, ai_prompts.py prepares instructions and permitted context.
+7. Profile context is included only if user consent and the conversation option
+   both allow it. Journal entries are not loaded into chat context.
+8. get_provider() selects Gemini, optional OpenAI-compatible provider, or demo.
+9. Provider integration uses httpx. The provider streams generated text.
+10. token_stream relays text as SSE; the browser renders it as it arrives.
+11. The final assistant text/metadata is persisted and the stream completes.
+
+9.3 Provider modes
+- Gemini is preferred when GEMINI_API_KEY is configured. The default model
+  setting is gemini-3.6-flash.
+- An optional OpenAI-compatible provider can be configured by key, model and base
+  URL; it calls a chat-completions-style endpoint.
+- Without either key, the backend provides clearly labelled demo text; this is
+  not a live model answer.
+- Gemini retries selected temporary server/overload failures, but quota/network
+  failures can still happen.
+- Provider exception details are not returned directly to the browser.
+
+9.4 Attachments and voice
+- Companion accepts PNG/JPEG/WebP images and PDF/TXT/Markdown/CSV documents.
+- Files are validated for size/type/signature. Images/PDF can be sent inline;
+  text documents are passed to the provider as untrusted text.
+- AI attachments are temporary to a generation and are not persisted as message
+  content. This differs from public post images which use /uploads storage.
+- SpeechRecognition/webkitSpeechRecognition and speechSynthesis are browser
+  APIs. They are not a server-side speech model and depend on browser support,
+  microphone permission and device configuration.
+
+9.5 Honest AI/ML limitations
+- Remote AI can be wrong, incomplete, outdated or sound too confident.
+- Rule-based safety detection can miss context or trigger incorrectly.
+- No clinical evaluation or diagnostic capability is established by this code.
+- Provider quotas, availability and response quality are external dependencies.
+- The Companion is not a therapist, medical diagnosis system or emergency service.
+
+
+10. FRONTEND EXPLANATION
+------------------------
+
+10.1 Framework and startup
+The frontend is React 19 + TypeScript 6 with Vite 8. main.tsx mounts the
+application and providers; App.tsx maps routes. React Router handles URL changes.
+
+10.2 Pages and reusable components
+- Public.tsx: Landing, SignIn, SignUp, AuthShell.
+- Onboarding.tsx: account setup.
+- Home.tsx: feed tabs, prompts, post composer, image upload, warning and anonymous
+  post interaction.
+- AIChat.tsx: conversation list/search/actions, style/intent, streaming,
+  attachment selection, speech recognition and read-aloud.
+- Communities.tsx: community browse/detail/membership.
+- Messages.tsx: inbox, request accept/decline and direct conversation actions.
+- Care.tsx: doctor search/detail and appointment views.
+- Account.tsx: profile, privacy, saved, notification, journal, prep and admin
+  screens.
+- PostPage.tsx: one post's detail.
+- Layout.tsx: shared navigation/shell, theme preference, connection state and
+  live update behaviors.
+- PostCard.tsx: reusable post card and interactions.
+- ui.tsx: shared buttons, fields, alerts, empty states, spinner, modal and avatar.
+
+10.3 State and API behavior
+- AuthProvider/useAuth in lib/auth.tsx manages current user and auth actions.
+- React Query manages server state; ordinary React state manages current input,
+  menus, filters, selected files and short-term UI state.
+- api.ts centralizes fetch, cookies, errors and unauthorized behavior.
+- streamSse handles AI event streams.
+- vite.config.ts proxies /api and /uploads to backend. HEARTBRIDGE_API_TARGET
+  can set its target; the documented default is localhost:8000.
+
+10.4 Styling and accessibility
+- Tailwind CSS v4 is integrated with Vite; index.css and App.css include
+  custom CSS variables and rules.
+- Companion uses scoped dark workspace styling; site-level light/dark preference
+  is stored in localStorage by Layout.
+- Accessibility measures include skip link, focus outlines, screen-reader labels,
+  aria labels, reduced-motion behavior and low-bandwidth behavior.
+- richText.tsx uses constrained rendering and safe links rather than
+  dangerouslySetInnerHTML.
+
+10.5 How frontend talks to backend
+Page event -> api() -> fetch with credentials: include -> Vite dev proxy
+-> FastAPI endpoint -> JSON -> React Query/UI.
+AI page event -> streamSse -> authenticated POST -> SSE token events
+-> incremental React render.
+Member messages -> WebSocket event for best-effort live notification plus
+ordinary API calls for persisted data.
+
+
+11. BACKEND EXPLANATION
+-----------------------
+
+11.1 Framework layers
+- FastAPI: request routing and dependency execution.
+- Routers: HTTP/WebSocket endpoint definitions and request coordination.
+- Services: shared application rules (accounts, booking, social, AI provider,
+  safety and realtime).
+- Models: SQLAlchemy persistence schema.
+- Database: engine/session setup.
+- Pydantic: request data validation and typed settings.
+
+11.2 Startup and requests
+1. Run Uvicorn with app.main:app from backend.
+2. FastAPI constructs routes/middleware and runs lifespan startup.
+3. Request passes configured CORS/origin/security-header/logging middleware.
+4. Pydantic parses the request; dependencies create DB session and resolve user.
+5. Router checks owner/role/business permissions.
+6. Service and SQLAlchemy perform operation; transaction is committed as needed.
+7. Endpoint returns JSON, SSE or a WebSocket interaction.
+
+11.3 Error behavior
+- Request validation has a friendly 422 response based on the first validation
+  error.
+- Auth failures result in unauthorized responses.
+- AI streaming failures are logged and emitted as a generic SSE error, not a
+  success-shaped answer containing provider details.
+- Summary-generation failures return HTTP 503.
+- The frontend ApiError handles HTTP errors; streaming errors must also be handled
+  from SSE events.
+- Unexpected errors use the framework's normal handling.
+
+
+12. AUTHENTICATION AND SECURITY
+-------------------------------
+
+12.1 Sign-up/login
+1. SignIn/SignUp collects email/password/profile display name.
+2. Frontend calls POST /api/auth/login or /api/auth/register.
+3. Backend validates request and applies rate limits.
+4. Password is hashed with PBKDF2-SHA256 and salt; plaintext is not stored.
+5. Backend signs a JWT and places it in an HTTP-only hb_session cookie.
+6. AuthProvider requests GET /api/me to populate frontend user state.
+7. Protected backend calls use get_current_user to validate token/load active user.
+8. require_moderator adds backend role enforcement for privileged routes.
+9. Logout clears the cookie; account deletion uses protected API logic.
+
+12.2 Security controls present
+- Salted password hashing and constant-time verification.
+- Signed JWT stored in HttpOnly, SameSite=Lax cookie; Secure option configurable.
+- CORS allowlist and credential support.
+- Origin check for supplied Origin on state-changing requests.
+- Security headers: X-Content-Type-Options, X-Frame-Options, Referrer-Policy;
+  request ID and request timing/status log.
+- Pydantic request validation, per-route authorization, ownership checks.
+- File type/size/signature checks.
+- AI provider keys loaded server-side; they must never be added to frontend code.
+- Limited safe rich-text rendering.
+- AI safety rules before provider generation.
+
+12.3 Risks to be honest about
+- A development JWT secret fallback exists. Deployment must set a long random
+  JWT_SECRET and keep it private.
+- COOKIE_SECURE must be true behind HTTPS in deployment.
+- Origin check only applies when Origin is supplied; there is no separate CSRF
+  token mechanism. Review cookie/CSRF policy for deployment.
+- Rate limiter is in-memory per process, not shared among workers/instances.
+- WebSocket hub is in-memory/best-effort, not a durable distributed queue.
+- General /uploads files are mounted publicly; they are not private document
+  storage. The upload endpoint reads content before enforcing its size limit.
+- Client-side role visibility does not replace server authorization.
+- This project is not a security/privacy/medical compliance certification.
+
+
+13. DEPENDENCIES
+----------------
+
+13.1 Backend direct requirements (backend/requirements.txt)
+fastapi             API routing, validation and dependencies.
+uvicorn[standard]   ASGI server used to run FastAPI.
+sqlalchemy          ORM, sessions, engine and relational models.
+alembic             Database migrations.
+pydantic            Request and data validation.
+pydantic-settings   Typed environment-backed settings.
+python-multipart    Multipart form/file parsing.
+PyJWT               JWT signing/validation.
+httpx               Async HTTP requests to AI provider.
+pytest              Backend testing.
+email-validator     Email validation support for Pydantic.
+
+13.2 Frontend direct dependencies (frontend/package.json)
+Runtime:
+- @tanstack/react-query: server state, fetch cache and invalidation.
+- lucide-react: icon components.
+- react and react-dom: component framework/browser rendering.
+- react-router-dom: routes and navigation.
+
+Development/test:
+- @tailwindcss/vite and tailwindcss: Tailwind integration and CSS utilities.
+- @vitejs/plugin-react: React support in Vite.
+- @testing-library/jest-dom and @testing-library/react: UI test utilities.
+- @types/node, @types/react, @types/react-dom: TypeScript declarations.
+- jsdom: browser-like test DOM.
+- oxlint: linting.
+- typescript: compiler/type checking.
+- vite: development/build.
+- vitest: test runner.
+
+13.3 npm scripts
+- npm run dev: Vite dev server.
+- npm run build: TypeScript project build then Vite production build.
+- npm run lint: oxlint.
+- npm run preview: preview generated frontend build.
+- npm test: Vitest run.
+
+13.4 Unused/duplicate dependencies
+No duplicate direct dependency was established by the inspected manifests. Do not
+claim a dependency is unused without checking imports and build effects. Starter
+assets (react.svg/vite.svg) appear alongside HeartBridge assets; an asset's
+presence alone does not prove whether it is referenced. node_modules and dist are
+generated and should not be treated as authored project files.
+
+
+14. ENVIRONMENT VARIABLES (NAMES ONLY)
+--------------------------------------
+
+Names are sourced from backend/app/config.py and .env.example. Values are not
+included.
+
+DATABASE_URL
+  Selects database connection (SQLite default; PostgreSQL possible).
+JWT_SECRET
+  Signs/verifies session tokens; set a strong private value outside development.
+JWT_ALGORITHM
+  JWT signing/verification algorithm setting.
+JWT_EXPIRE_DAYS
+  Session token lifetime.
+COOKIE_SECURE
+  Makes the session cookie HTTPS-only when true.
+ALLOWED_ORIGINS
+  Browser origin allowlist for CORS.
+ALLOW_LOCALHOST_ORIGIN
+  Controls localhost development-origin allowance.
+DEMO_BANNER
+  Displays fictional/demo-data indicator.
+RATE_LIMIT_ENABLED
+  Controls configured API rate limiting.
+GEMINI_API_KEY
+  Backend-only credential for Gemini API calls.
+GEMINI_MODEL
+  Gemini model name; default documented as gemini-3.6-flash.
+OPENAI_API_KEY
+  Optional credential for the OpenAI-compatible provider.
+OPENAI_MODEL
+  Model name for that provider.
+OPENAI_BASE_URL
+  Base URL for OpenAI-compatible service.
+AI_TIMEOUT_SECONDS
+  Outbound AI HTTP timeout.
+AI_MAX_TOKENS
+  Generation token limit; default is 1200 in current documented configuration.
+AI_STREAM_DELAY
+  Stream chunk pacing/configuration.
+UPLOAD_DIR
+  Local directory for uploaded files.
+HEARTBRIDGE_API_TARGET
+  Frontend Vite proxy target for API/upload routes; documented default backend
+  target is localhost:8000.
+
+Provider selection:
+GEMINI_API_KEY configured -> Gemini preferred.
+Otherwise OPENAI_API_KEY configured -> OpenAI-compatible provider.
+Otherwise -> labelled demo response mode.
+
+Copy .env.example to backend/.env for local setup. The example uses placeholders.
+The actual .env is ignored and must remain private. Never put keys in .env.example,
+committed code, browser variables, chat, screenshots or logs.
+
+
+15. DATABASE/API/AI ARCHITECTURE MAP
+------------------------------------
+
+USER
+ |
+ v
+React page (Home, AIChat, Care, etc.)
+ |
+ +--> React Query for server data
+ |
+ v
+frontend/src/lib/api.ts -- cookie-authenticated fetch
+ |
+ +--> Vite proxy for local development
+ |
+ v
+FastAPI /api router
+ |
+ +--> Pydantic validates payload
+ +--> get_current_user / require_moderator checks identity/role
+ +--> service implements business rules
+        |
+        +--> SQLAlchemy -> SQLite/PostgreSQL -> JSON response
+        |
+        +--> AI safety/prompt/provider selection
+                   |
+                   +--> httpx -> Gemini / OpenAI-compatible API
+                   +--> local labelled demo provider
+                   |
+                   +--> SSE stream -> api.ts -> AIChat
+        |
+        +--> WebSocket hub -> connected member browser
+
+The frontend does not connect directly to the database or provider secret.
+
+
+16. "WHY DID YOU USE THIS?" GUIDE QUESTIONS
+-------------------------------------------
+
+Q: Why React instead of plain HTML?
+A: The site has reusable pages/components and interactive state. React updates
+   the UI as data changes; plain HTML would need more manual DOM handling.
+
+Q: Why TypeScript?
+A: It checks data shapes and function usage during the build and makes larger
+   UI code easier to maintain.
+
+Q: Why Vite?
+A: It provides a fast local dev server, plugin support, API proxy and production
+   bundle.
+
+Q: Why FastAPI?
+A: It supplies typed HTTP routes, dependency injection and automatic request
+   parsing/validation integration for the Python API.
+
+Q: Why Python?
+A: It is the language used for the backend; it has the libraries needed for
+   this API, persistence and outbound AI HTTP integration.
+
+Q: Why SQLAlchemy?
+A: The app has related relational records such as users/posts/memberships/
+   appointments. SQLAlchemy maps these models to tables and manages DB sessions.
+
+Q: Why Alembic?
+A: It keeps database schema changes versioned and repeatable; code startup does
+   not silently create the production schema.
+
+Q: Why SQLite?
+A: It simplifies local development and tests as a file-backed DB. PostgreSQL is
+   supported for multi-user/shared deployment.
+
+Q: Why not MongoDB?
+A: The current implementation uses relational relationships and constraints;
+   it actually uses SQLAlchemy with SQLite/PostgreSQL, not MongoDB.
+
+Q: Why JWT?
+A: A signed token identifies the session on later requests. This implementation
+   keeps it in an HttpOnly cookie rather than localStorage.
+
+Q: Why hash passwords?
+A: A database breach should not reveal the original passwords; backend stores
+   salted PBKDF2-SHA256 hashes and checks them safely.
+
+Q: Why use an API between frontend and backend?
+A: It separates UI from authentication, business rules and persistence, and
+   keeps database/provider secrets on the server.
+
+Q: Why SSE for AI?
+A: The AI answer is delivered server-to-browser progressively; SSE lets the UI
+   render tokens without waiting for the complete answer.
+
+Q: Why a WebSocket too?
+A: Member-message live updates have a separate bidirectional use; WebSocket is
+   not the AI token transport here.
+
+Q: Why Gemini?
+A: It is an optional remote generative model used for inference when configured.
+   The project does not train it.
+
+Q: Why httpx?
+A: It makes asynchronous HTTP requests to provider endpoints without requiring
+   a provider-specific SDK in the direct backend dependency list.
+
+Q: Why environment variables?
+A: They configure database/service behavior without hard-coding credentials in
+   source; secrets are read by backend only.
+
+Q: Why not Pandas, NumPy or scikit-learn?
+A: The repository has no tabular ML training pipeline; adding them would not
+   serve the current code's purpose.
+
+Q: Why not Streamlit?
+A: The actual UI is a React/Vite application, not a Python data app.
+
+
+17. GUIDE'S CROSS-QUESTIONS - CODE-BASED ANSWERS
+------------------------------------------------
+
+Q: Where does a button's data go after it is clicked?
+A: The page handler calls api.ts, which sends HTTP to a FastAPI route; the route
+   validates, authorizes, invokes service/database logic and returns data.
+
+Q: How does the backend know who is signed in?
+A: Browser sends hb_session cookie. get_current_user validates JWT and loads an
+   active user from the database.
+
+Q: How does the frontend know who is signed in?
+A: AuthProvider calls GET /api/me and stores the response in its React context.
+
+Q: Where are database tables created?
+A: SQLAlchemy declarations are in backend/app/models.py; Alembic migration
+   scripts under backend/alembic/versions apply them to the actual database.
+
+Q: How is data cleaned/transformed?
+A: Request bodies are parsed/validated with Pydantic and then route/service code
+   applies feature-specific normalization and rules. There is no Pandas/NumPy
+   dataset preprocessing pipeline.
+
+Q: How does an AI model receive input?
+A: ai.py checks user/conversation/attachment, applies safety rules, builds
+   permitted context and sends a provider request from backend via httpx.
+
+Q: How is the model trained/loaded?
+A: It is not trained or loaded locally. The remote provider performs generation
+   on its own service after receiving the request.
+
+Q: What happens if the AI API fails?
+A: Gemini retries selected transient errors. If generation fails, the backend
+   logs and emits a generic SSE error; it does not expose provider response/key.
+
+Q: What if the database is down?
+A: Database-backed routes cannot complete and return an error; there is no
+   database failover system in this prototype.
+
+Q: How is double-booking prevented?
+A: booking.py checks slot availability and database constraints protect active
+   slot uniqueness.
+
+Q: Are attachments saved?
+A: AI chat file data is used transiently and not stored as AI message content.
+   Separately, ordinary public uploads are placed under /uploads and statically
+   served, so they are not private.
+
+Q: What happens if a dependency is removed?
+A: Any importing code using it will fail or lose behavior. For example, removing
+   SQLAlchemy needs DB access rewrite; removing React Query requires custom
+   loading/cache state; removing httpx needs another provider HTTP client.
+
+Q: What are the scalability issues?
+A: SQLite, process-local rate limits and in-memory WebSocket fan-out need
+   replacement/configuration for multiple instances. A shared DB, rate-limit
+   store, pub/sub and durable job/event design are typical next steps.
+
+Q: How would you deploy safely?
+A: HTTPS, strong JWT secret, secure cookies, restricted CORS, managed secrets/DB,
+   private file strategy, backups, monitoring, incident process, and clinical/
+   privacy/legal review.
+
+Q: What are the limitations?
+A: Demo provider/clinicians, unvalidated generative AI, pattern-based safety,
+   no emergency response, non-E2E member messages, local in-memory infrastructure,
+   and no live hospital availability.
+
+
+18. MOST IMPORTANT FUNCTIONS, CLASSES AND COMPONENTS
+----------------------------------------------------
+
+18.1 Backend declarations and calls
+
+1. Settings(BaseSettings)
+   File: backend/app/config.py
+   Purpose: typed application configuration.
+   Input/output: environment/config values -> Settings object.
+   Called by: application/provider/database setup; calls no business service.
+
+2. get_settings() -> Settings
+   File: backend/app/config.py
+   Purpose: retrieve cached/current settings.
+   Input/output: none -> Settings.
+   Called by: modules needing configuration.
+
+3. make_engine(url: str)
+   File: backend/app/database.py
+   Purpose: make SQLAlchemy engine for a DB URL.
+   Input/output: URL -> engine.
+   Called by: DB module initialization/tests.
+
+4. get_db()
+   File: backend/app/database.py
+   Purpose: yield and close a SQLAlchemy session.
+   Input/output: request dependency -> session lifecycle.
+   Called by: FastAPI route dependencies.
+
+5. hash_password(password: str) -> str
+   File: backend/app/security.py
+   Purpose: salt and hash a new password.
+   Input/output: plaintext supplied transiently -> stored hash string.
+   Called by: account creation.
+
+6. verify_password(password: str, stored: str) -> bool
+   File: backend/app/security.py
+   Purpose: compare attempted password to stored hash.
+   Called by: login logic.
+
+7. create_token(user_id: int, role: str) -> str
+   File: backend/app/security.py
+   Purpose: create signed session JWT.
+   Called by: successful login/registration.
+
+8. get_current_user(request: Request, db: Session = Depends(get_db)) -> User
+   File: backend/app/deps.py
+   Purpose: read cookie, validate token and load active account.
+   Called by: protected FastAPI endpoints.
+
+9. require_moderator(user: User = Depends(get_current_user)) -> User
+   File: backend/app/deps.py
+   Purpose: enforce moderator/admin role.
+   Called by: moderation endpoints.
+
+10. check(self, key: str, limit: int, window: float = 60) -> None
+    File: backend/app/rate_limit.py
+    Purpose: apply in-process request limit.
+    Called by: rate-limited API handlers.
+
+11. create_user(db: Session, email: str, password: str,
+                display_name_value: str, role: str = "member") -> User
+    File: backend/app/services/accounts.py
+    Purpose: shared account/profile creation.
+    Input/output: DB session and account values -> User record.
+    Called by: registration/seed paths; uses security/model operations.
+
+12. book_slot(db: Session, patient_id: int, slot_id: int,
+              notes: str) -> Appointment
+    File: backend/app/services/booking.py
+    Purpose: check and create appointment reservation.
+    Called by: doctors/appointments router; accesses slot/appointment records.
+
+13. classify(text: str) -> str
+    File: backend/app/services/ai_safety.py
+    Purpose: rule/pattern-based safety classification.
+    Called by: AI message route before generation.
+
+14. safety_reply(code: str) -> str
+    File: backend/app/services/ai_safety.py
+    Purpose: provide policy response for classified input.
+    Called by: AI route when classification requires safety handling.
+
+15. GeminiProvider
+    File: backend/app/services/ai_provider.py
+    Purpose: stream generation through Gemini HTTP endpoint.
+    Called by: provider selection/token streaming.
+
+16. get_provider() -> DemoProvider | OpenAIProvider | GeminiProvider
+    File: backend/app/services/ai_provider.py
+    Purpose: choose provider based on configured backend keys/settings.
+    Called by: AI message/summary logic.
+
+17. context_note(db: Session, user: User,
+                 conversation: AIConversation) -> tuple[bool, str]
+    File: backend/app/routers/ai.py
+    Purpose: decide permitted profile context for a chat.
+    Called by: AI message path; checks settings/consent.
+
+18. decode_chat_attachment(body: ChatIn) -> GenerationAttachment | None
+    File: backend/app/routers/ai.py
+    Purpose: validate/decode an ephemeral Companion file attachment.
+    Called by: AI message endpoint.
+
+19. token_stream(request: Request, conversation_id: int, user_id: int,
+                 user_text: str, gen: GenerationRequest, safety_code: str)
+    File: backend/app/routers/ai.py
+    Purpose: generate, stream and persist assistant response.
+    Called by: send_message; interacts with provider and DB.
+
+20. send_message(...)
+    File: backend/app/routers/ai.py
+    Purpose: authenticated AI message endpoint; coordinates validation and stream.
+    Called by: frontend POST /api/ai/conversations/{id}/messages.
+
+18.2 Frontend components/helpers
+
+App - frontend/src/App.tsx: route map.
+RequireAuth - frontend/src/App.tsx: signed-in/onboarding guard.
+AuthProvider, useAuth - frontend/src/lib/auth.tsx: auth state and actions.
+Layout - frontend/src/components/Layout.tsx: protected app shell/navigation/theme.
+Landing, SignIn, SignUp - frontend/src/pages/Public.tsx: public UI/forms.
+Home - frontend/src/pages/Home.tsx: feed and post composition.
+AIChat - frontend/src/pages/AIChat.tsx: AI Companion interface and stream.
+Onboarding - frontend/src/pages/Onboarding.tsx: initial preferences.
+Doctors, DoctorDetail, Appointments - frontend/src/pages/Care.tsx.
+Messages - frontend/src/pages/Messages.tsx.
+Communities, CommunityDetail - frontend/src/pages/Communities.tsx.
+ProfilePage, PrivacyPage, SavedPage, NotificationsPage, JournalPage, PrepPage,
+AdminPage - frontend/src/pages/Account.tsx.
+PostCard, ReportDialog - frontend/src/components/PostCard.tsx.
+Button, Field, Alert, Empty, Spinner, Modal, Avatar - frontend/src/components/ui.tsx.
+ApiError, api, streamSse, setUnauthorizedHandler - frontend/src/lib/api.ts.
+RichText - frontend/src/lib/richText.tsx.
+formatWhen, topicLabel - frontend/src/lib/types.ts.
+
+For any function whose exact runtime signature matters, open the declaration in
+the cited source; route handlers often use multiline FastAPI dependency arguments.
+
+18.3 Function input/output and call relationships
+
+Function/class | File | Input | Output | Called by | Calls/uses
+--- | --- | --- | --- | --- | ---
+Settings | backend/app/config.py | Environment/config values | Settings instance | Backend modules | Pydantic Settings loading
+get_settings() | backend/app/config.py | None | Settings instance | Modules needing configuration | Settings cache/loader
+make_engine(url: str) | backend/app/database.py | Database URL | SQLAlchemy engine | Database initialization/tests | SQLAlchemy engine factory
+get_db() | backend/app/database.py | FastAPI dependency lifecycle | Session yield, then closes it | Route dependencies | SessionLocal
+hash_password(password: str) | backend/app/security.py | Plaintext password transiently | Salted hash string | Registration/account creation | PBKDF2 hash operation
+verify_password(password: str, stored: str) | backend/app/security.py | Attempt and stored hash | Boolean match | Login logic | Constant-time hash comparison
+create_token(user_id: int, role: str) | backend/app/security.py | User ID and role | Signed JWT string | Successful auth route | JWT encoder/configuration
+get_current_user(request, db) | backend/app/deps.py | Request cookie and DB session | Active User or auth error | Protected route dependency | JWT decoder and User query
+require_moderator(user) | backend/app/deps.py | Current User | Authorized User or permission error | Moderator/admin routes | Role check
+check(self, key, limit, window=60) | backend/app/rate_limit.py | Rate-limit key/limit/window | None or limit error | Auth and sensitive route handlers | In-memory counter/window
+create_user(db, email, password, display_name_value, role="member") | backend/app/services/accounts.py | DB session and account fields | User model | Registration/seed flow | Password helper and User/Profile records
+book_slot(db, patient_id, slot_id, notes) | backend/app/services/booking.py | DB session, patient, slot, notes | Appointment model | Appointment route | Slot/Appointment queries and writes
+classify(text: str) | backend/app/services/ai_safety.py | User text | Safety category string | AI message flow | Rule/pattern checks
+safety_reply(code: str) | backend/app/services/ai_safety.py | Safety category | Safe policy response text | AI route for matched categories | Policy response mapping
+GeminiProvider | backend/app/services/ai_provider.py | Provider settings and generation request | Streamed provider text | Provider selector/AI generation | httpx and Gemini endpoint
+get_provider() | backend/app/services/ai_provider.py | Current provider settings | Demo/OpenAI-compatible/Gemini provider | AI route/service | Provider constructors and settings
+context_note(db, user, conversation) | backend/app/routers/ai.py | DB session, User, AIConversation | Context-enabled flag and text | AI message preparation | Consent/profile/conversation data query
+decode_chat_attachment(body) | backend/app/routers/ai.py | Validated ChatIn payload | GenerationAttachment or None | AI message endpoint | Base64 decode and file validation
+token_stream(request, conversation_id, user_id, user_text, gen, safety_code) | backend/app/routers/ai.py | Request, IDs, text, generation context, safety code | SSE event stream; persists completed reply | send_message endpoint | Safety/provider stream and SQLAlchemy writes
+send_message(...) | backend/app/routers/ai.py | Authenticated conversation ID and ChatIn body | StreamingResponse/SSE | AIChat POST request | Ownership/input checks, attachment decode, token_stream
+
+This table describes the main call path; FastAPI dependencies and framework
+callbacks also invoke parts of the flow. Read the cited declaration before
+claiming any detail not shown in the table.
+
+
+19. PROJECT EXECUTION FLOW
+--------------------------
+
+19.1 Documented development commands (Windows PowerShell)
+Backend terminal:
+  cd backend
+  py -3.11 -m venv .venv
+  .\.venv\Scripts\Activate.ps1
+  pip install -r requirements.txt
+  Copy .env.example to backend/.env and configure values locally
+  alembic upgrade head
+  python -m app.seed
+  uvicorn app.main:app --reload --port 8000
+
+Frontend terminal:
+  cd frontend
+  npm install
+  npm run dev
+
+Open the URL printed by Vite (README default: http://localhost:5173).
+FastAPI docs: http://127.0.0.1:8000/docs.
+Health check: http://127.0.0.1:8000/api/health.
+
+19.2 What each step does
+1. Python venv isolates Python packages from other projects.
+2. pip installs backend/requirements.txt.
+3. backend/.env provides local configuration; real keys remain local/private.
+4. Alembic creates/upgrades DB schema.
+5. seed module inserts fictional demo records.
+6. Uvicorn imports app.main:app and serves FastAPI.
+7. npm installs declared frontend dependencies.
+8. Vite starts the React dev server and proxies API paths.
+9. Browser loads index.html, main.tsx starts React/router/auth.
+10. AuthProvider checks GET /api/me.
+11. User interacts; page creates request or SSE/WebSocket connection.
+12. Backend validates/authenticates, accesses database/provider and responds.
+13. Frontend updates UI and displays result.
+
+The README lists Python 3.11+ and Node.js 22/npm. Port conflicts require changing
+the backend port and matching HEARTBRIDGE_API_TARGET/CORS configuration. Do not
+stop an unrelated process without identifying it.
+
+
+20. COMMON ERRORS
+-----------------
+
+Error: Sign-in reports invalid email/password
+Why: incorrect credentials, account missing, seed not run, or password mismatch.
+Identify: API response and seeded account state; do not log password.
+Fix: apply migrations, run `python -m app.seed` for demo data, use intended
+credentials. Never store credentials in source.
+
+Error: Companion uses demo mode
+Why: neither live provider key is available to backend.
+Identify: GET /api/ai/status and backend configuration state; do not print key.
+Fix: set provider key privately in backend/.env and restart API.
+
+Error: AI answer unavailable/generic stream error
+Why: provider quota, outage, timeout, invalid configuration or network error.
+Identify: backend logs/provider status without printing key or sensitive prompt.
+Fix: check provider quota/service/config, retry later or use configured fallback.
+
+Error: Browser cannot reach backend or sees CORS failure
+Why: backend stopped, wrong proxy target/port, origin not allowed, cookie mismatch.
+Identify: browser Network tab, /api/health, Vite proxy and allowed-origin config.
+Fix: start API, match HEARTBRIDGE_API_TARGET, CORS and dev origin.
+
+Error: Session disappears after login
+Why: cookie not included, origin/proxy mismatch, secure-cookie/HTTP mismatch.
+Identify: browser cookie/network inspection and API /me result.
+Fix: use Vite proxy, credentials include, correct local origin; production needs
+HTTPS and secure cookie.
+
+Error: Address already in use
+Why: another process occupies configured port.
+Identify: Uvicorn/Vite startup says which port failed.
+Fix: choose free port and update proxy/allowed-origin configuration.
+
+Error: Migration says database/table state conflicts
+Why: schema and Alembic migration state differ.
+Identify: Alembic error/version state.
+Fix: for disposable local demo data only, back up if needed and recreate local DB;
+never delete production records.
+
+Error: Appointment slot cannot be booked
+Why: slot closed, invalid, or another request reserved it first.
+Identify: API error and refreshed slot status.
+Fix: refresh slots and select an available one; server prevents active duplicates.
+
+Error: File upload rejected
+Why: unsupported extension/MIME/signature, size limit, malformed payload or
+directory permission.
+Identify: endpoint validation response.
+Fix: use a supported type within configured limits; do not bypass server checks.
+
+Error: Browser voice input fails
+Why: speech recognition unsupported, microphone denied, insecure origin, no mic.
+Identify: browser permission and UI error message.
+Fix: grant permission/use supported browser or type the message.
+
+Error: Frontend lint fails loading oxlint native binding
+Why: platform-specific package is missing/incompatible in the local environment.
+Identify: native package load error before source diagnostics.
+Fix: restore declared dependencies for current Node/platform then rerun lint.
+Do not report source lint as passed if tool did not run.
+
+Error: Frontend build/type check fails
+Why: TypeScript diagnostics or dependency/tool version mismatch.
+Identify: `npm run build` output.
+Fix: address reported type errors or restore dependencies; rerun build.
+
+
+21. PROJECT LIMITATIONS AND ARCHITECTURAL ISSUES
+------------------------------------------------
+
+- Prototype, not a clinic, therapy product, emergency service or monitoring system.
+- Sample doctors/appointments are not real verified-provider records.
+- Generative AI may be wrong; no clinical validation study exists.
+- Rule-based safety checks are not a reliable diagnosis classifier.
+- Provider quota, network and external service outages can interrupt answers.
+- Demo replies are not equivalent to live provider inference.
+- Saved Hindi/Telugu preferences do not mean the interface translates medical text.
+- Member messages are not end-to-end encrypted.
+- In-memory WebSocket events are best-effort and not a durable queue.
+- Rate limits are process-local and do not coordinate across server instances.
+- Public /uploads static serving is not appropriate for sensitive documents.
+- Upload endpoint reads bytes before enforcing its limit; production needs proxy
+  request limits and streaming-size protection.
+- SQLite is convenient locally but not ideal for a multi-instance high-concurrency
+  production service.
+- Email notification preferences are stored; the README says email delivery is
+  not implemented.
+- There is no real-time hospital availability integration.
+- Before real use, health-data retention, children/minors, privacy, clinical
+  wording, legal/regulatory requirements, provider verification, HTTPS, backup,
+  disaster recovery and operations require expert review.
+
+
+22. FUTURE IMPROVEMENTS
+-----------------------
+
+1. Use a shared rate-limit store so counters work across server workers.
+2. Move WebSocket fan-out to a shared pub/sub/message broker and add reconnect/
+   delivery behavior.
+3. Design private authenticated file storage, malware scanning, expiry and
+   deletion before accepting confidential files.
+4. Improve safe user-facing quota/outage messages while keeping provider details
+   and secrets private.
+5. Add provider HTTP mock tests for quota, timeout and malformed-stream cases.
+6. Deploy with managed PostgreSQL, backup/restore drills and migration checks.
+7. Review cookie CSRF and missing-Origin behavior for the deployment model.
+8. Build an actual clinician credential verification workflow before listing real
+   providers.
+9. Create documented retention/deletion and access-audit policies for health data.
+10. Add end-to-end tests for auth cookies, upload, AI SSE, booking conflicts,
+    mobile layout and accessibility.
+
+
+23. TWO-MINUTE EXPLANATION
+--------------------------
+
+HeartBridge is a full-stack wellbeing community prototype. It brings together a
+community feed, topic-based groups, private messages, an AI Companion, and a
+sample clinician directory with appointment booking. The goal is to demonstrate
+connected peer-support and wellbeing workflows; it is not a clinic or emergency
+service.
+
+The frontend is built with React and TypeScript. React Router selects pages,
+React Query manages server data, and a shared API helper sends browser requests.
+The backend is written in Python with FastAPI. During development Vite serves the
+frontend and proxies API requests to FastAPI.
+
+The backend uses SQLAlchemy to store relational data in SQLite by default, and
+Alembic applies schema migrations. Authentication uses a signed JWT in an
+HTTP-only cookie; passwords are hashed rather than stored as plain text.
+
+For Companion messages, the backend checks safety rules, prepares allowed
+conversation context, and selects Gemini, an optional OpenAI-compatible service,
+or a clearly labelled demo provider. The provider key is kept only on the backend.
+The answer is streamed to the browser using Server-Sent Events so the user can
+see text while it is generated. The project calls a remote model; it does not
+train a model.
+
+The main limitations are that providers and AI are not clinically validated,
+sample clinicians are fictional, uploads are not private document storage, and
+some realtime/rate-limit infrastructure is process-local. Those areas need
+clinical, privacy, security and scalability work before production use.
+
+
+24. FIVE-MINUTE TECHNICAL EXPLANATION
+-------------------------------------
+
+HeartBridge is structured as a React/TypeScript single-page application and a
+Python FastAPI modular-monolith backend. In frontend/src/main.tsx the application
+is mounted with routing and authentication providers. frontend/src/App.tsx
+defines public, onboarding and protected routes. RequireAuth redirects signed-out
+users to sign-in and incomplete users to onboarding. Layout supplies navigation
+and shared presentation; feature pages contain their own UI.
+
+The frontend uses React Query for remote/server state and ordinary React state
+for immediate form, menu, selected-file and voice-control state. Its common
+frontend/src/lib/api.ts wrapper performs fetch requests with cookie credentials,
+centralizes API errors and reads SSE events. Vite serves the frontend locally and
+proxies /api and /uploads to the backend.
+
+The backend starts at app.main:app under Uvicorn. FastAPI mounts route modules
+under /api. Pydantic validates request data. Dependencies provide database
+sessions and the current user. Routers check ownership and permissions, then call
+reusable services. SQLAlchemy model classes represent users, profiles, consent,
+communities, posts, messages, Companion conversations, doctors, appointments,
+moderation and privacy records. SQLite is default; PostgreSQL can be configured.
+Alembic migrations track schema changes.
+
+For authentication, passwords are salted PBKDF2-SHA256 hashes. On successful
+login the backend signs a JWT and puts it in an HTTP-only cookie. Protected
+requests pass through get_current_user, which validates the token and loads an
+active database user. Moderator/admin routes add require_moderator checks.
+
+For the Companion, the API validates the conversation owner and any attachment,
+persists the user's text, checks rule-based safety categories, and builds context
+according to applicable profile-consent settings. It then selects Gemini when
+configured, an optional OpenAI-compatible endpoint, or labelled demo responses.
+httpx makes the provider request. The backend relays response tokens by SSE and
+saves the completed assistant message. The repository does not train the remote
+model. Member messages use a different WebSocket mechanism for best-effort live
+updates.
+
+Important prototype limitations are external model reliability/clinical validity,
+fictional provider data, public static uploads, non-shared in-memory rate limiting
+and WebSocket fan-out, and the absence of real hospital availability. Production
+would need secure deployment configuration, privacy/clinical/legal review,
+private storage, scalable shared services, backups and operational monitoring.
+
+
+25. FINAL CHEAT SHEET
+---------------------
+
+PROJECT: HeartBridge supportive community/wellbeing prototype.
+PROBLEM: Demonstrates connected peer support, Companion, messaging and sample care.
+SOLUTION: React web app + FastAPI service + relational database + optional AI API.
+FRONTEND: React 19, TypeScript 6, Vite 8, Router 7, React Query 5, Tailwind 4.
+BACKEND: Python FastAPI, routers, reusable services, Pydantic validation.
+DATABASE: SQLAlchemy; SQLite default; PostgreSQL supported; Alembic migrations.
+AI/ML: Remote generative inference; no local training/data/model weights.
+APIS: HTTP API, Gemini/optional OpenAI-compatible provider, SSE, WebSocket.
+MAIN LIBRARIES: fastapi, sqlalchemy, alembic, pydantic, PyJWT, httpx, React,
+                react-router-dom, @tanstack/react-query, Tailwind, Vitest.
+IMPORTANT FILES: backend/app/main.py, config.py, database.py, models.py,
+                 security.py, deps.py, routers/ai.py, services/ai_provider.py,
+                 services/ai_safety.py, frontend/src/App.tsx, lib/api.ts,
+                 lib/auth.tsx, pages/AIChat.tsx.
+DATA FLOW: Browser -> api.ts -> FastAPI -> service -> DB/provider -> JSON/SSE/WS
+           -> React UI.
+KEY FUNCTIONS: get_current_user, require_moderator, hash_password,
+               verify_password, create_token, book_slot, classify,
+               get_provider, token_stream, send_message, api, streamSse.
+SECURITY: Password hashes, JWT in HttpOnly cookie, authorization, CORS/input checks;
+          configure secret/HTTPS and private files for deployment.
+LIMITATIONS: Prototype, fictional clinicians, unvalidated AI, no emergency service,
+             public uploads, process-local realtime/rate limiting.
+FUTURE SCOPE: Shared infrastructure, PostgreSQL, private files, provider UX,
+              verified clinicians, privacy/security review, end-to-end testing.
+
+10 THINGS I MUST KNOW
+1. HeartBridge is a prototype, not a clinical or emergency service.
+2. Frontend is React/TypeScript; backend is Python/FastAPI.
+3. frontend/src/lib/api.ts is the shared browser API/SSE layer.
+4. SQLAlchemy models are relational; SQLite is default and PostgreSQL is supported.
+5. Alembic applies schema migrations; app startup does not create all tables.
+6. Passwords are hashed; JWT is held in an HTTP-only hb_session cookie.
+7. Provider API keys belong only in backend environment configuration.
+8. HeartBridge calls remote AI for inference; it does not train a local model.
+9. Safety handling is rule-based and not a clinical guarantee.
+10. AI streams over SSE; message live updates use a separate WebSocket.
+
+20 QUESTIONS MY GUIDE MAY ASK - SHORT ANSWERS
+1. What is HeartBridge? A wellbeing and peer-support full-stack prototype.
+2. Which frontend? React with TypeScript, built/served by Vite.
+3. Which backend? Python FastAPI.
+4. Which database? SQLite by default; PostgreSQL can be configured.
+5. What does SQLAlchemy do? Maps Python models/queries to relational tables.
+6. Why Alembic? Versioned, repeatable database schema upgrades.
+7. How does login persist? JWT is set in an HTTP-only cookie.
+8. Are raw passwords stored? No, salted password hashes are stored.
+9. Where are API calls centralized? frontend/src/lib/api.ts.
+10. How does AI stream? Server-Sent Events carry tokens to the browser.
+11. Is Gemini trained here? No, it is remote inference.
+12. Where is the provider key stored? Backend environment only.
+13. What if no key is configured? The labelled demo provider is selected.
+14. How does AI safety work? Server-side rule/pattern checks run before generation.
+15. How are pages protected? Frontend guard plus backend user dependency.
+16. How are admin routes protected? Backend moderator/admin authorization.
+17. Are AI attachments saved? Raw attachment content is not saved in chat history.
+18. Are all uploads private? No, public post images are served from /uploads.
+19. How is double booking prevented? Booking checks and DB active-slot uniqueness.
+20. Is this ready for clinical production? No; substantial reviews/hardening remain.
+
+TECHNOLOGY CONNECTION MAP
+React + TypeScript
+  -> typed reusable pages/components
+React Router
+  -> selects URL route and protected screen
+React Query + api.ts
+  -> fetches/caches server data and includes session cookie
+Vite proxy
+  -> forwards development /api and /uploads calls
+FastAPI + Pydantic
+  -> routes requests and validates bodies
+Auth dependencies + services
+  -> check identity/role and apply application rules
+SQLAlchemy
+  -> reads/writes SQLite or PostgreSQL records
+Alembic
+  -> changes database schema safely
+AI safety + prompt construction
+  -> classify input and prepare permitted context
+httpx + configured provider
+  -> sends server-side generation request
+SSE
+  -> delivers response tokens to AIChat
+React state
+  -> displays the answer to the user
+
+
+QUICK FILE LOOKUP
+-----------------
+App bootstrap:                 backend/app/main.py
+Configuration:                backend/app/config.py
+DB engine/session:             backend/app/database.py
+Models:                        backend/app/models.py
+Auth/token/password helpers:   backend/app/security.py
+Auth dependencies:             backend/app/deps.py
+AI endpoints:                  backend/app/routers/ai.py
+AI provider calls:             backend/app/services/ai_provider.py
+AI safety rules:               backend/app/services/ai_safety.py
+AI prompts:                    backend/app/services/ai_prompts.py
+Booking service:               backend/app/services/booking.py
+Initial migration:             backend/alembic/versions/45225d5c65bb_initial_schema.py
+Frontend bootstrap:            frontend/src/main.tsx
+Frontend route map:            frontend/src/App.tsx
+API/SSE wrapper:               frontend/src/lib/api.ts
+Auth state:                    frontend/src/lib/auth.tsx
+Companion page:                frontend/src/pages/AIChat.tsx
+Shared layout/theme:           frontend/src/components/Layout.tsx
+Frontend design:               frontend/src/index.css
+Python dependencies:           backend/requirements.txt
+Frontend dependencies:         frontend/package.json
+Setup/architecture/limitations: README.md
+Safe environment template:     .env.example
+
+Viva method: when asked about a technology, state (1) the problem it solves,
+(2) the exact file that implements it, (3) which component calls it, and
+(4) a real limitation. Never claim a remote API is a locally trained model or
+describe sample/demo data as clinically verified.

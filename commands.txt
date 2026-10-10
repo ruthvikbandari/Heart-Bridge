@@ -1,0 +1,8 @@
+backend:
+cd C:\Users\91939\Downloads\HeartBridge\heat-project\backend
+& C:\Users\91939\Downloads\HeartBridge\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000
+
+frontend:
+cd C:\Users\91939\Downloads\HeartBridge\heat-project\frontend
+$env:Path = "C:\Users\91939\.copilot\session-state\2b24d373-5f42-43db-b3b6-14ab7818e8da\files\node22-runtime\node_modules\node\bin;$env:Path"
+npm run dev -- --host 127.0.0.1
