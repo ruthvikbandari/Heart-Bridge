@@ -3,7 +3,8 @@
   "services": {
     "backend": {
       "root": "heat-project/backend",
-      "framework": "fastapi"
+      "framework": "fastapi",
+      "buildCommand": "bash ../../vercel-build.sh"
     },
     "frontend": {
       "root": "heat-project/frontend",

@@ -18,6 +18,10 @@ flowchart LR
 
 The API is a modular monolith. Route handlers stay thin. Safety checks, booking, and account deletion live in services. API keys never go to the browser.
 
+## Deploying on Vercel with Neon
+
+Create a Neon PostgreSQL project and copy its connection string with `sslmode=require`. In the Vercel project settings, add it as `DATABASE_URL` for every environment you deploy (Production and Preview as needed), then redeploy. Keep the connection string private; do not commit it to this repository. The backend build applies Alembic migrations before the deployment is served and fails if `DATABASE_URL` is missing or points to SQLite. Use separate Neon branches/URLs for Preview and Production if you want isolated data.
+
 ## What you can do
 
 - Register, sign in, and complete onboarding with optional topics and privacy choices.
@@ -99,7 +103,7 @@ Copy `.env.example` to `backend/.env`.
 
 | Variable | Purpose |
 | --- | --- |
-| `DATABASE_URL` | `sqlite:///./heartbridge.db` or a PostgreSQL URL |
+| `DATABASE_URL` | Local default: `sqlite:///./heartbridge.db`; Vercel: Neon PostgreSQL URL with `sslmode=require` |
 | `JWT_SECRET` | Long random string. Change this before any shared deployment |
 | `COOKIE_SECURE` | `true` only behind HTTPS |
 | `ALLOWED_ORIGINS` | Browser origins allowed to call the API |
@@ -122,7 +126,7 @@ cd ..\frontend
 npm test
 ```
 
-Latest local run: 24 backend tests and 1 frontend test passed. The backend suite covers auth, feed visibility, topic personalization, AI safety, Gemini image and document streaming with attachment non-persistence, message permissions, booking conflicts including a concurrent reservation, export, and account deletion.
+Latest local run: 44 backend tests and 1 frontend test passed. The backend suite covers auth, feed visibility, topic personalization, AI safety, Gemini image and document streaming with attachment non-persistence, message permissions, booking conflicts including a concurrent reservation, export, and account deletion.
 
 ## API map
 
