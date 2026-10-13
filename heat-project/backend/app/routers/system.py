@@ -1,3 +1,5 @@
+import os
+import tempfile
 import uuid
 from pathlib import Path
 
@@ -19,7 +21,10 @@ def upload_root() -> Path:
     settings = get_settings()
     path = Path(settings.upload_dir)
     if not path.is_absolute():
-        path = BACKEND_DIR / path
+        if os.environ.get("VERCEL") == "1":
+            path = Path(tempfile.gettempdir()) / path
+        else:
+            path = BACKEND_DIR / path
     path.mkdir(parents=True, exist_ok=True)
     return path
 

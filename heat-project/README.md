@@ -108,6 +108,7 @@ Copy `.env.example` to `backend/.env`.
 | `OPENAI_API_KEY` | Optional existing OpenAI-compatible provider fallback |
 | `OPENAI_MODEL` | Used only when the OpenAI-compatible key is set |
 | `OPENAI_BASE_URL` | OpenAI-compatible base URL |
+| `UPLOAD_DIR` | Image upload directory; relative paths use `/tmp` on Vercel, where uploaded files are ephemeral |
 | `AI_MAX_TOKENS` | Maximum response length; default is 1200 to allow detailed answers |
 | `DEMO_BANNER` | Shows the fictional-data banner |
 | `RATE_LIMIT_ENABLED` | Per-user and per-IP limits on auth, posts, messages, and AI |
