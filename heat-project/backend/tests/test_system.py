@@ -1,7 +1,16 @@
 from pathlib import Path
 from types import SimpleNamespace
 
+from app.config import get_settings
 from app.routers import system
+
+
+def test_production_frontend_origin_is_allowed():
+    assert "https://heart-bridge-flame.vercel.app" in get_settings().origins
+
+
+def test_other_vercel_origins_are_not_implicitly_allowed():
+    assert "https://another-project.vercel.app" not in get_settings().origins
 
 
 def test_upload_root_uses_temporary_directory_on_vercel(tmp_path, monkeypatch):

@@ -34,7 +34,9 @@ class Settings(BaseSettings):
 
     @property
     def origins(self) -> list[str]:
-        return [item.strip() for item in self.allowed_origins.split(",") if item.strip()]
+        configured = [item.strip() for item in self.allowed_origins.split(",") if item.strip()]
+        production_frontend = "https://heart-bridge-flame.vercel.app"
+        return list(dict.fromkeys([*configured, production_frontend]))
 
     @property
     def ai_live(self) -> bool:
